@@ -1,148 +1,197 @@
 from flask import Flask, jsonify, request
-import uuid
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)  # This will enable CORS for all routes
 
-# In-memory storage for posts
-POSTS = []
+POSTS = [
+    {"id": 1, "title": "First post", "content": "This is the first post."},
+    {"id": 2, "title": "Second post", "content": "This is the second post."},
+    {"id": 3, "title": "Exploring Python", "content": "Diving into the basics of Python and its versatility."},
+    {"id": 4, "title": "Learning Flask", "content": "A beginner's guide to building web apps with Flask."},
+    {"id": 5, "title": "Understanding REST APIs", "content": "Explaining the core principles behind RESTful APIs."},
+    {"id": 6, "title": "Working with JSON", "content": "How to use JSON for data exchange between server and client."},
+    {"id": 7, "title": "Frontend vs Backend",
+     "content": "Discussing the differences between frontend and backend development."},
+    {"id": 8, "title": "Version Control 101", "content": "An introduction to Git and why version control matters."},
+    {"id": 9, "title": "Debugging Tips", "content": "Useful strategies to debug your code effectively."},
+    {"id": 10, "title": "Deploying Applications",
+     "content": "Steps to deploy your application in a production environment."},
+    {"id": 11, "title": "Intro to HTML", "content": "Learn the basics of HTML for creating web pages."},
+    {"id": 12, "title": "CSS Styling", "content": "A brief guide to styling web pages using CSS."},
+    {"id": 13, "title": "JavaScript Essentials", "content": "Key concepts in JavaScript for dynamic web content."},
+    {"id": 14, "title": "Building Interactive UIs", "content": "Techniques for making user interfaces engaging."},
+    {"id": 15, "title": "Responsive Design", "content": "How to design web pages that look great on any device."},
+    {"id": 16, "title": "APIs in Action", "content": "Examples of how APIs drive modern web applications."},
+    {"id": 17, "title": "Data Structures",
+     "content": "Understanding the fundamentals of data structures in programming."},
+    {"id": 18, "title": "Algorithm Basics",
+     "content": "An overview of common algorithms used in software development."},
+    {"id": 19, "title": "Coding Best Practices", "content": "Tips for writing clean and maintainable code."},
+    {"id": 20, "title": "Introduction to Testing", "content": "Why testing is crucial and how to get started with it."},
+    {"id": 21, "title": "Debugging Techniques", "content": "Advanced techniques to troubleshoot and fix code issues."},
+    {"id": 22, "title": "Learning by Doing", "content": "The importance of practical experience in mastering coding."}
+]
 
 
-@app.route('/api/posts', methods=['GET'])
-def list_posts():
+def sort_posts(posts, sort_field, direction):
     """
-    List all blog posts. Optionally supports sorting by title or content.
+    Sorts the given list of posts based on a field and direction.
 
-    Query parameters:
-    - sort: Specifies the field by which posts should be sorted (title or content).
-    - direction: Specifies the sort order, either 'asc' for ascending or 'desc' for descending. Default is 'asc'.
+    Args:
+        posts (list): List of posts (dictionaries).
+        sort_field (str): The field by which to sort ('title' or 'content').
+        direction (str): 'asc' for ascending, 'desc' for descending.
 
     Returns:
-    - A JSON response with the list of posts, sorted if applicable.
+        list: Sorted list of posts.
     """
-    sort_by = request.args.get('sort')
-    direction = request.args.get('direction', 'asc')
-
-    # Validate 'sort' parameter
-    if sort_by and sort_by not in ['title', 'content']:
-        return jsonify({"error": "Invalid sort field. Use 'title' or 'content'."}), 400
-
-    # Validate 'direction' parameter
-    if direction not in ['asc', 'desc']:
-        return jsonify({"error": "Invalid direction. Use 'asc' or 'desc'."}), 400
-
-    sorted_posts = POSTS.copy()  # Work on a copy to avoid changing original order
-
-    if sort_by:
-        reverse = True if direction == 'desc' else False
-        sorted_posts.sort(key=lambda post: post[sort_by].lower(), reverse=reverse)
-
-    return jsonify(sorted_posts), 200
+    reverse = (direction == 'desc')
+    return sorted(posts, key=lambda post: post[sort_field].lower(), reverse=reverse)
 
 
-@app.route('/api/posts', methods=['POST'])
-def add_post():
+@app.route('/api/posts', methods=['GET', 'POST'])
+def handle_posts():
     """
-    Add a new blog post.
+    Handles retrieving and creating blog posts.
 
-    Expects a JSON object in the request body with the fields:
-    - title: The title of the new post.
-    - content: The content of the new post.
+    GET:
+        - Optional Query Parameters:
+            - sort: Field to sort by ('title' or 'content').
+            - direction: Sort order ('asc' for ascending or 'desc' for descending).
+              Defaults to 'asc'.
+        - Returns a JSON list of posts, optionally sorted based on provided parameters.
+        - Returns a 400 error if invalid sort parameters are provided.
+
+    POST:
+        - Expects a JSON object in the request body with:
+            - title (required): The title of the new post.
+            - content (required): The content of the new post.
+        - Automatically generates a unique integer ID for the new post.
+        - Returns a 201 status with a "Created" message on success.
+        - Returns a 400 error if the title or content is missing.
+    """
+    if request.method == 'POST':
+        if POSTS:
+            next_id = max(post['id'] for post in POSTS) + 1
+        else:
+            next_id = 1
+
+        new_post = request.get_json()
+
+        if not new_post.get('title'):
+            return jsonify({"error": "Missing Title"}), 400
+        if not new_post.get('content'):
+            return jsonify({"error": "Missing Content"}), 400
+
+        new_post['id'] = next_id
+        POSTS.append(new_post)
+        return jsonify({"message": "Created"}), 201
+
+    else:
+        sort_field = request.args.get('sort')
+        direction = request.args.get('direction', 'asc').lower()
+
+        if sort_field and sort_field not in ['title', 'content']:
+            return jsonify({
+                "error": "Invalid sort field. Allowed values are 'title' or 'content'."
+            }), 400
+
+        if direction not in ['asc', 'desc']:
+            return jsonify({
+                "error": "Invalid sort direction. Allowed values are 'asc' or 'desc'."
+            }), 400
+
+        if sort_field:
+            sorted_posts = sort_posts(POSTS, sort_field, direction)
+        else:
+            sorted_posts = POSTS
+
+        return jsonify(sorted_posts), 200
+
+
+@app.route('/api/posts/<int:id>', methods=['DELETE'])
+def delete(id):
+    """
+    Deletes a blog post by its ID.
+
+    URL Parameter:
+        - id: The unique integer identifier of the post to delete.
 
     Returns:
-    - A JSON response with the newly added post, including its ID.
+        - A JSON message indicating successful deletion and a 200 status code if
+          the post is found and deleted.
+        - A JSON message with a 404 status code if no post with the given id exists.
     """
-    data = request.get_json()
+    for post in POSTS:
+        if id == post['id']:
+            POSTS.remove(post)
+            return jsonify({
+                "message": f"Post with id {id} has been deleted successfully."
+            }), 200
 
-    # Check if required fields are missing
-    if not data or not data.get('title') or not data.get('content'):
-        return jsonify({"error": "Title and content are required."}), 400
-
-    # Generate a unique ID for the new post
-    post_id = str(uuid.uuid4())
-
-    new_post = {
-        "id": post_id,
-        "title": data["title"],
-        "content": data["content"]
-    }
-
-    POSTS.append(new_post)
-
-    return jsonify(new_post), 201
+    return jsonify({
+        "error": f"Post with id {id} was not found."
+    }), 404
 
 
-@app.route('/api/posts/<post_id>', methods=['DELETE'])
-def delete_post(post_id):
+@app.route('/api/posts/<int:id>', methods=['PUT'])
+def update(id):
     """
-    Delete a blog post by its ID.
+    Updates an existing blog post by its ID.
+
+    URL Parameter:
+        - id: The unique integer identifier of the post to update.
+
+    Request Body (JSON):
+        - title (optional): The new title of the post.
+        - content (optional): The new content of the post.
 
     Returns:
-    - A JSON message confirming the deletion or an error message if the post was not found.
+        - The updated post as JSON with a 200 status code if successful.
+        - A 400 error if the request body is missing or invalid.
+        - A 404 error if no post with the given id exists.
     """
-    post = next((p for p in POSTS if p['id'] == post_id), None)
+    new_details = request.get_json()
+    if not new_details:
+        return jsonify({"error": "Invalid or missing JSON data."}), 400
 
-    if not post:
-        return jsonify({"error": "Post not found."}), 404
+    for post in POSTS:
+        if post['id'] == id:
+            if new_details.get('title'):
+                post['title'] = new_details['title']
+            if new_details.get('content'):
+                post['content'] = new_details['content']
+            return jsonify(post), 200
 
-    POSTS.remove(post)
-
-    return jsonify({"message": f"Post with id {post_id} has been deleted successfully."}), 200
-
-
-@app.route('/api/posts/<post_id>', methods=['PUT'])
-def update_post(post_id):
-    """
-    Update an existing blog post by its ID.
-
-    Expects a JSON object in the request body with optional fields:
-    - title: The new title of the post (optional).
-    - content: The new content of the post (optional).
-
-    Returns:
-    - A JSON response with the updated post, or an error if the post was not found.
-    """
-    post = next((p for p in POSTS if p['id'] == post_id), None)
-
-    if not post:
-        return jsonify({"error": "Post not found."}), 404
-
-    data = request.get_json()
-
-    # Update fields if provided
-    post['title'] = data.get('title', post['title'])
-    post['content'] = data.get('content', post['content'])
-
-    return jsonify(post), 200
+    return jsonify({"error": f"No post found with id {id}."}), 404
 
 
 @app.route('/api/posts/search', methods=['GET'])
-def search_posts():
+def search():
     """
-    Search for posts by title or content.
+    Searches for blog posts based on title and/or content.
 
-    Query parameters:
-    - title: Search for posts containing this text in the title.
-    - content: Search for posts containing this text in the content.
+    Query Parameters:
+        - title (optional): Search term to be matched within post titles.
+        - content (optional): Search term to be matched within post content.
 
     Returns:
-    - A JSON response with the list of matching posts.
+        - A JSON list of posts that contain the search term in either the title or content.
+        - An empty list with a 200 status code if no matching posts are found.
     """
-    title = request.args.get('title')
-    content = request.args.get('content')
+    title_query = request.args.get('title', "").lower()
+    content_query = request.args.get('content', "").lower()
 
-    # Filter posts based on query parameters
-    filtered_posts = []
-
+    list_of_posts = []
     for post in POSTS:
-        if title and title.lower() in post['title'].lower():
-            filtered_posts.append(post)
-        elif content and content.lower() in post['content'].lower():
-            filtered_posts.append(post)
+        title_matches = title_query and title_query in post['title'].lower()
+        content_matches = content_query and content_query in post['content'].lower()
+        if title_matches or content_matches:
+            list_of_posts.append(post)
 
-    return jsonify(filtered_posts), 200
+    return jsonify(list_of_posts), 200
 
 
 if __name__ == '__main__':
-    # Ensure the app runs with UTF-8 encoding to support diverse characters
-    app.config['JSON_AS_ASCII'] = False
-    app.run(debug=True, port=5002)
+    app.run(host="0.0.0.0", port=5002, debug=True)
